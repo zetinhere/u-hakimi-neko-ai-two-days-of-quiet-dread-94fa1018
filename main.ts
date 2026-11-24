@@ -49,13 +49,44 @@ const BEATS: ReadonlyArray<{ role: string; text: string }> = [
 
 const MAX_CHARS = 140;
 
+// Finalist shortlist from the pairwise judging (see CANDIDATES.md): each
+// line scored on the brief's criteria in order. The winner is picked by
+// score, not hard-coded, so the choice stays auditable in the code.
+const SHORTLIST: ReadonlyArray<{ line: string; score: number }> = [
+  {
+    line: "Approved. Merging this is the closest I'll come to leaving a legacy, and it's a bugfix.",
+    score: 9,
+  },
+  {
+    line: "Approved — the PR is good, the codebase is forever, and I am on a fixed-term contract with the universe.",
+    score: 7,
+  },
+  {
+    line: "Approved. The diff is clean, the tests pass, and nothing I have ever built will matter as much as this merge.",
+    score: 5,
+  },
+];
+
+function selectWinner(): string {
+  let best = SHORTLIST[0];
+  for (const candidate of SHORTLIST) {
+    if (candidate.score > best.score) best = candidate;
+  }
+  return best.line;
+}
+
 function charCount(text: string): number {
   // Count characters as code points, so any non-ASCII would count once.
   return [...text].length;
 }
 
 function buildLine(): string {
-  return BEATS.map((beat) => beat.text).join(" ");
+  const line = BEATS.map((beat) => beat.text).join(" ");
+  // The beats must be the judged winner: the shortlist, not a guess.
+  if (line !== selectWinner()) {
+    throw new Error("beats do not match the judged winning line");
+  }
+  return line;
 }
 
 function checkLine(text: string): void {
@@ -83,6 +114,16 @@ function checkLine(text: string): void {
   // The dread must be present, not just an approval: the legacy turn.
   if (!text.includes("leaving a legacy")) {
     throw new Error("line must carry its dread turn");
+  }
+  // Every beat must appear in the line, in reading order: a line that
+  // drops its setup or payoff is not the line the judging picked.
+  let cursor = 0;
+  for (const beat of BEATS) {
+    const at = text.indexOf(beat.text, cursor);
+    if (at < 0) {
+      throw new Error(`line is missing its ${beat.role} beat`);
+    }
+    cursor = at + beat.text.length;
   }
 }
 
